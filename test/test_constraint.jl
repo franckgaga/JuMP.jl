@@ -31,19 +31,20 @@ function test_extension_VariableIndex_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     m = ModelType()
     @variable(m, x)
     # x <= 10.0 doesn't translate to a SingleVariable constraint because
     # the LHS is first subtracted to form x - 10.0 <= 0.
-    @constraint(m, cref, x in MOI.LessThan(10.0))
+    @constraint(m, cref, x in MOI.LessThan(10))
     c = constraint_object(cref)
     @test c.func == x
-    @test c.set == MOI.LessThan(10.0)
+    @test c.set == MOI.LessThan(T(10))
     @variable(m, y[1:2])
-    @constraint(m, cref2[i = 1:2], y[i] in MOI.LessThan(float(i)))
+    @constraint(m, cref2[i = 1:2], y[i] in MOI.LessThan(i))
     c = constraint_object(cref2[1])
     @test c.func == y[1]
-    @test c.set == MOI.LessThan(1.0)
+    @test c.set == MOI.LessThan(T(1))
     return
 end
 
@@ -82,27 +83,29 @@ function test_extension_AffExpr_scalar_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    AffExprType = JuMP.GenericAffExpr{value_type(ModelType),VariableRefType}
     model = ModelType()
+    T = value_type(ModelType)
     @variable(model, x)
     cref = @constraint(model, 2x <= 10)
     @test "" == @inferred name(cref)
     set_name(cref, "c")
-    _test_constraint_name_util(cref, "c", AffExpr, MOI.LessThan{Float64})
+    _test_constraint_name_util(cref, "c", AffExprType, MOI.LessThan{Float64})
     c = constraint_object(cref)
     @test isequal_canonical(c.func, 2x)
-    @test c.set == MOI.LessThan(10.0)
+    @test c.set == MOI.LessThan(T(10))
     cref = @constraint(model, 3x + 1 ≥ 10)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, 3x)
-    @test c.set == MOI.GreaterThan(9.0)
+    @test c.set == MOI.GreaterThan(T(9))
     cref = @constraint(model, 1 == -x)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 1.0x)
-    @test c.set == MOI.EqualTo(-1.0)
+    @test isequal_canonical(c.func, one(T) * x)
+    @test c.set == MOI.EqualTo(-one(T))
     cref = @constraint(model, 2 == 1)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, zero(AffExpr))
-    @test c.set == MOI.EqualTo(-1.0)
+    @test isequal_canonical(c.func, zero(AffExprType))
+    @test c.set == MOI.EqualTo(-one(T))
     return
 end
 
@@ -110,6 +113,7 @@ function test_extension_AffExpr_vectorized_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     err = ErrorException(
@@ -139,10 +143,10 @@ function test_extension_AffExpr_vectorized_constraints(
     end
     cref = @constraint(model, [x, 2x] .== [1 - x, 3])
     c = constraint_object.(cref)
-    @test isequal_canonical(c[1].func, 2.0x)
-    @test c[1].set == MOI.EqualTo(1.0)
-    @test isequal_canonical(c[2].func, 2.0x)
-    @test c[2].set == MOI.EqualTo(3.0)
+    @test isequal_canonical(c[1].func, 2x)
+    @test c[1].set == MOI.EqualTo(T(1))
+    @test isequal_canonical(c[2].func, 2x)
+    @test c[2].set == MOI.EqualTo(T(3))
     return
 end
 
@@ -150,6 +154,7 @@ function test_extension_AffExpr_vectorized_interval_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x[1:2])
     err = ErrorException(
@@ -157,12 +162,12 @@ function test_extension_AffExpr_vectorized_interval_constraints(
         "scalar constraint. Did you mean to use the dot comparison " *
         "operators `l .<= f(x) .<= u` instead?",
     )
-    b = [5.0, 6.0]
+    b = T[5, 6]
     @test_throws_strip err @constraint(model, b <= x <= b)
     cref = @constraint(model, b .<= x .<= b)
     c = constraint_object.(cref)
     for i in 1:2
-        @test isequal_canonical(c[i].func, 1.0 * x[i])
+        @test isequal_canonical(c[i].func, 1 * x[i])
         @test c[i].set == MOI.Interval(b[i], b[i])
     end
     return
@@ -172,11 +177,12 @@ function test_extension_AffExpr_vector_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    AffExprType = JuMP.GenericAffExpr{value_type(ModelType),VariableRefType}
     model = ModelType()
     cref = @constraint(model, [1, 2] in MOI.Zeros(2))
     c = constraint_object(cref)
-    @test isequal_canonical(c.func[1], zero(AffExpr) + 1)
-    @test isequal_canonical(c.func[2], zero(AffExpr) + 2)
+    @test isequal_canonical(c.func[1], zero(AffExprType) + 1)
+    @test isequal_canonical(c.func[2], zero(AffExprType) + 2)
     @test c.set == MOI.Zeros(2)
     @test c.shape isa VectorShape
     @test_throws DimensionMismatch @constraint(model, [1, 2] in MOI.Zeros(3))
@@ -221,19 +227,22 @@ function test_extension_two_sided_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
+    AffExprType = JuMP.GenericAffExpr{T,VariableRefType}
     m = ModelType()
     @variable(m, x)
     @variable(m, y)
-    @constraint(m, cref, 1.0 <= x + y + 1.0 <= 2.0)
-    _test_constraint_name_util(cref, "cref", AffExpr, MOI.Interval{Float64})
+    @constraint(m, cref, 1 <= x + y + 1 <= 2)
+    _test_constraint_name_util(cref, "cref", AffExprType, MOI.Interval{T})
     c = constraint_object(cref)
     @test isequal_canonical(c.func, x + y)
-    @test c.set == MOI.Interval(0.0, 1.0)
-    cref = @constraint(m, 2x - y + 2.0 ∈ MOI.Interval(-1.0, 1.0))
+    @test c.set ==
+          MOI.Interval(zero(value_type(ModelType)), one(value_type(ModelType)))
+    cref = @constraint(m, 2x - y + T(2) ∈ MOI.Interval(-one(T), one(T)))
     @test "" == @inferred name(cref)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, 2x - y)
-    @test c.set == MOI.Interval(-3.0, -1.0)
+    @test c.set == MOI.Interval(-3one(T), -one(T))
     return
 end
 
@@ -241,18 +250,19 @@ function test_extension_broadcasted_constraint_eq(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     m = ModelType()
     @variable(m, x[1:2])
-    A = [1.0 2.0; 3.0 4.0]
-    b = [4.0, 5.0]
+    A = T[1 2; 3 4]
+    b = T[4, 5]
     cref = @constraint(m, A * x .== b)
     @test (2,) == @inferred size(cref)
     c1 = constraint_object(cref[1])
     @test isequal_canonical(c1.func, x[1] + 2x[2])
-    @test c1.set == MOI.EqualTo(4.0)
+    @test c1.set == MOI.EqualTo(T(4))
     c2 = constraint_object(cref[2])
     @test isequal_canonical(c2.func, 3x[1] + 4x[2])
-    @test c2.set == MOI.EqualTo(5.0)
+    @test c2.set == MOI.EqualTo(T(5))
     return
 end
 
@@ -260,9 +270,10 @@ function test_extension_broadcasted_constraint_leq(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     m = ModelType()
     @variable(m, x[1:2, 1:2])
-    UB = [1.0 2.0; 3.0 4.0]
+    UB = T[1 2; 3 4]
     cref = @constraint(m, x .+ 1 .<= UB)
     @test (2, 2) == @inferred size(cref)
     for i in 1:2
@@ -279,11 +290,12 @@ function test_extension_broadcasted_two_sided_constraint(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     m = ModelType()
     @variable(m, x[1:2])
     @variable(m, y[1:2])
-    l = [1.0, 2.0]
-    u = [3.0, 4.0]
+    l = T[1, 2]
+    u = T[3, 4]
     cref = @constraint(m, l .<= x + y .+ 1 .<= u)
     @test (2,) == @inferred size(cref)
     for i in 1:2
@@ -317,6 +329,7 @@ function test_extension_quadexpr_constraints(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     @variable(model, y)
@@ -324,12 +337,12 @@ function test_extension_quadexpr_constraints(
     cref = @constraint(model, x^2 + x <= 1)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, x^2 + x)
-    @test c.set == MOI.LessThan(1.0)
+    @test c.set == MOI.LessThan(one(T))
 
-    cref = @constraint(model, y * x - 1.0 == 0.0)
+    cref = @constraint(model, y * x - 1 == 0)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, x * y)
-    @test c.set == MOI.EqualTo(1.0)
+    @test c.set == MOI.EqualTo(one(T))
 
     cref = @constraint(
         model,
@@ -361,6 +374,7 @@ function test_extension_indicator_constraint(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, a, Bin)
     @variable(model, b, Bin)
@@ -373,7 +387,7 @@ function test_extension_indicator_constraint(
     ]
         c = constraint_object(cref)
         @test c.func == [a, x + 2y]
-        @test c.set == MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan(1.0))
+        @test c.set == MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan(one(T)))
     end
     for cref in [
         @constraint(model, !b => {2x + y <= 1})
@@ -384,7 +398,7 @@ function test_extension_indicator_constraint(
     ]
         c = constraint_object(cref)
         @test c.func == [b, 2x + y]
-        @test c.set == MOI.Indicator{MOI.ACTIVATE_ON_ZERO}(MOI.LessThan(1.0))
+        @test c.set == MOI.Indicator{MOI.ACTIVATE_ON_ZERO}(MOI.LessThan(one(T)))
     end
     err = ErrorException(
         "In `@constraint(model, !(a, b) => {x <= 1})`: Invalid binary variable expression `!(a, b)` for indicator constraint.",
@@ -413,6 +427,8 @@ function test_extension_SDP_constraint(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
+    AffExprType = JuMP.GenericAffExpr{T,VariableRefType}
     m = ModelType()
     @variable(m, x)
     @variable(m, y)
@@ -433,7 +449,7 @@ function test_extension_SDP_constraint(
     _test_constraint_name_util(
         sym_ref,
         "sym_ref",
-        Vector{AffExpr},
+        Vector{AffExprType},
         MOI.PositiveSemidefiniteConeTriangle,
     )
     c = constraint_object(sym_ref)
@@ -447,7 +463,7 @@ function test_extension_SDP_constraint(
     _test_constraint_name_util(
         cref,
         "cref",
-        Vector{AffExpr},
+        Vector{AffExprType},
         MOI.PositiveSemidefiniteConeSquare,
     )
     c = constraint_object(cref)
@@ -463,7 +479,7 @@ function test_extension_SDP_constraint(
         _test_constraint_name_util(
             iref[i],
             "iref[$i]",
-            Vector{AffExpr},
+            Vector{AffExprType},
             MOI.PositiveSemidefiniteConeSquare,
         )
         c = constraint_object(iref[i])
@@ -477,7 +493,7 @@ function test_extension_SDP_constraint(
 
     @constraint(m, con_d, 0 <= LinearAlgebra.Diagonal([x, y]), PSDCone())
     c = constraint_object(con_d)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test iszero(c.func[2])
     @test iszero(c.func[3])
@@ -491,7 +507,7 @@ function test_extension_SDP_constraint(
         PSDCone()
     )
     c = constraint_object(con_d_sym)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test iszero(c.func[2])
     @test isequal_canonical(c.func[3], 1y)
@@ -504,7 +520,7 @@ function test_extension_SDP_constraint(
         PSDCone()
     )
     c = constraint_object(con_td)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test isequal_canonical(c.func[2], 1z)
     @test isequal_canonical(c.func[3], 1w)
@@ -519,7 +535,7 @@ function test_extension_SDP_constraint(
         PSDCone(),
     )
     c = constraint_object(con_td_sym)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test isequal_canonical(c.func[2], 1w)
     @test isequal_canonical(c.func[3], 1y)
@@ -532,7 +548,7 @@ function test_extension_SDP_constraint(
         PSDCone()
     )
     c = constraint_object(con_ut)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test iszero(c.func[2])
     @test isequal_canonical(c.func[3], 1y)
@@ -546,7 +562,7 @@ function test_extension_SDP_constraint(
         PSDCone()
     )
     c = constraint_object(con_lt)
-    @test c.func isa Vector{GenericAffExpr{Float64,VariableRefType}}
+    @test c.func isa Vector{AffExprType}
     @test isequal_canonical(c.func[1], 1x)
     @test isequal_canonical(c.func[2], 1z)
     @test iszero(c.func[3])
@@ -559,17 +575,18 @@ function test_extension_SDP_errors(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    AffExprType = JuMP.GenericAffExpr{value_type(ModelType),VariableRefType}
     model = ModelType()
     @variable(model, x)
     @variable(model, y)
     @variable(model, z)
     @variable(model, w)
-    aff_str = "$(GenericAffExpr{Float64,VariableRefType})"
+    aff_str = "$AffExprType"
     err = ErrorException(
         "In `@constraint(model, [x 1; 1 -y] >= [1 x; x -2], PSDCone(), unknown_kw = 1)`:" *
         " Unrecognized constraint building format. Tried to invoke " *
         "`build_constraint(error, $(aff_str)[x - " *
-        "1 -x + 1; -x + 1 -y + 2], $(MOI.GreaterThan(0.0)), $(PSDCone()); unknown_kw = 1)`, but no " *
+        "1 -x + 1; -x + 1 -y + 2], $(MOI.GreaterThan(false)), $(PSDCone()); unknown_kw = 1)`, but no " *
         "such method exists. This is due to specifying an unrecognized " *
         "function, constraint set, and/or extra positional/keyword " *
         "arguments.\n\nIf you're trying to create a JuMP extension, you " *
@@ -693,6 +710,7 @@ function test_extension_nonsensical_SDP_constraint(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     m = ModelType()
     @test_throws_strip(
         ErrorException(
@@ -704,7 +722,7 @@ function test_extension_nonsensical_SDP_constraint(
     @test_throws MethodError @variable(m, notone[1:5, 2:6], PSD)
     @test_throws MethodError @variable(m, oneD[1:5], PSD)
     @test_throws MethodError @variable(m, threeD[1:5, 1:5, 1:5], PSD)
-    Y = [1.0 2.0; 2.1 3.0]
+    Y = T[1 2; 21//10 3]
     function _ErrorException(m)
         return ErrorException(
             "In `$m`: Non-symmetric bounds, integrality or starting values " *
@@ -1154,12 +1172,13 @@ function test_extension_abstractarray_vector_constraint(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x[1:2, 1:2])
     c = @constraint(model, view(x, 1:4) in SOS1())
     obj = constraint_object(c)
     @test obj.func == x[1:4]
-    @test obj.set == MOI.SOS1([1.0, 2.0, 3.0, 4.0])
+    @test obj.set == MOI.SOS1(T[1, 2, 3, 4])
     return
 end
 
@@ -1167,13 +1186,14 @@ function test_extension_constraint_inference(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     foo(model, x) = @constraint(model, 2x <= 1)
     c = @inferred foo(model, x)
     obj = constraint_object(c)
     @test obj.func == 2x
-    @test obj.set == MOI.LessThan(1.0)
+    @test obj.set == MOI.LessThan(one(T))
     return
 end
 
@@ -1468,10 +1488,12 @@ function test_extension_HermitianPSDCone_errors(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    AffExprType =
+        JuMP.GenericAffExpr{Complex{value_type(ModelType)},VariableRefType}
     model = ModelType()
     @variable(model, x)
     @variable(model, y)
-    aff_str = "$(GenericAffExpr{ComplexF64,VariableRefType})"
+    aff_str = "$AffExprType"
     err = ErrorException(
         "In `@constraint(model, H in HermitianPSDCone(), unknown_kw = 1)`:" *
         " Unrecognized constraint building format. Tried to invoke " *
