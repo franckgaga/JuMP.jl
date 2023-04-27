@@ -122,16 +122,16 @@ function test_extension_AffExpr_vectorized_constraints(
         "sides of the constraint must have the same dimension.",
     )
     @test_throws_strip err @constraint(model, [x, 2x] in MOI.EqualTo(1.0))
-    T = typeof([x, 2x])
+    VT = typeof([x, 2x])
     err = ErrorException(
-        "Operation `sub_mul` between `$T` and `$Int` is not " *
+        "Operation `sub_mul` between `$VT` and `$Int` is not " *
         "allowed. This most often happens when you write a constraint like " *
         "`x >= y` where `x` is an array and `y` is a constant. Use the " *
         "broadcast syntax `x .- y >= 0` instead.",
     )
     @test_throws err @constraint(model, [x, 2x] == 1)
     err = ErrorException(
-        "Operation `sub_mul` between `$Int` and `$T` is not " *
+        "Operation `sub_mul` between `$Int` and `$VT` is not " *
         "allowed. This most often happens when you write a constraint like " *
         "`x >= y` where `x` is a constant and `y` is an array. Use the " *
         "broadcast syntax `x .- y >= 0` instead.",
@@ -1491,14 +1491,17 @@ function test_extension_HermitianPSDCone_errors(
     AffExprType =
         JuMP.GenericAffExpr{Complex{value_type(ModelType)},VariableRefType}
     model = ModelType()
+    T = value_type(ModelType)
     @variable(model, x)
     @variable(model, y)
     aff_str = "$AffExprType"
+    z = sprint(show, zero(T))
+    o = sprint(show, one(T))
     err = ErrorException(
         "In `@constraint(model, H in HermitianPSDCone(), unknown_kw = 1)`:" *
         " Unrecognized constraint building format. Tried to invoke " *
         "`build_constraint(error, $aff_str[" *
-        "x (0.0 + 1.0im); (0.0 - 1.0im) (-1.0 - 0.0im) y], $(HermitianPSDCone()); unknown_kw = 1)`, but no " *
+        "x ($z + $(o)im); ($z - $(o)im) (-$o - $(z)im) y], $(HermitianPSDCone()); unknown_kw = 1)`, but no " *
         "such method exists. This is due to specifying an unrecognized " *
         "function, constraint set, and/or extra positional/keyword " *
         "arguments.\n\nIf you're trying to create a JuMP extension, you " *

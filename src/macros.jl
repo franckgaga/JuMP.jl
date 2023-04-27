@@ -373,7 +373,7 @@ function _functionize(
 end
 
 _functionize(x) = x
-_functionize(::_MA.Zero) = 0.0
+_functionize(::_MA.Zero) = false
 
 """
     parse_constraint(_error::Function, expr::Expr)
@@ -641,7 +641,7 @@ function build_constraint(
     args...;
     kwargs...,
 )
-    return build_constraint(_error, f, MOI.GreaterThan(0.0), args...; kwargs...)
+    return build_constraint(_error, f, MOI.GreaterThan(false), args...; kwargs...)
 end
 
 function build_constraint(
@@ -651,11 +651,11 @@ function build_constraint(
     args...;
     kwargs...,
 )
-    return build_constraint(_error, f, MOI.LessThan(0.0), args...; kwargs...)
+    return build_constraint(_error, f, MOI.LessThan(false), args...; kwargs...)
 end
 
 function build_constraint(_error::Function, f, set::Zeros, args...; kwargs...)
-    return build_constraint(_error, f, MOI.EqualTo(0.0), args...; kwargs...)
+    return build_constraint(_error, f, MOI.EqualTo(false), args...; kwargs...)
 end
 
 function build_constraint(

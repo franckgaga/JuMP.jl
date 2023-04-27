@@ -47,7 +47,10 @@ vector-valued objectives, it returns a `Vector{Float64}`.
 
 See also: [`result_count`](@ref).
 """
-function objective_value(model::GenericModel{T}; result::Int = 1)::Union{T,Vector{T}} where {T}
+function objective_value(
+    model::GenericModel{T};
+    result::Int = 1,
+)::Union{T,Vector{T}} where {T}
     return MOI.get(model, MOI.ObjectiveValue(result))
 end
 
@@ -233,11 +236,11 @@ function objective_function(
     return jump_function(model, func)
 end
 
-function objective_function(model::Model, ::Type{T}) where {T}
+function objective_function(model::GenericModel, ::Type{T}) where {T}
     return objective_function(model, moi_function_type(T))
 end
 
-function objective_function(model::Model)
+function objective_function(model::GenericModel)
     F = MOI.get(backend(model), MOI.ObjectiveFunctionType())
     return objective_function(model, F)
 end

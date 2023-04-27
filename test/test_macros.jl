@@ -30,7 +30,11 @@ function JuMP.build_variable(
     return NewVariable(info)
 end
 
-function JuMP.add_variable(model::GenericModel, v::NewVariable, name::String = "")
+function JuMP.add_variable(
+    model::GenericModel,
+    v::NewVariable,
+    name::String = "",
+)
     return add_variable(model, ScalarVariable(v.info), name * "_normal_add")
 end
 
@@ -415,27 +419,28 @@ function test_extension_Unicode_comparison_operators(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     @variable(model, y)
-    t = 10.0
+    t = T(10)
     cref = @constraint(model, (x + y) / 2 ≥ 1)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 0.5 * x + 0.5 * y)
-    @test c.set == MOI.GreaterThan(1.0)
+    @test isequal_canonical(c.func, inv(T(2)) * x + inv(T(2)) * y)
+    @test c.set == MOI.GreaterThan(T(1))
     cref = @constraint(model, (x + y) / 2 ≤ 1)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 0.5 * x + 0.5 * y)
-    @test c.set == MOI.LessThan(1.0)
+    @test isequal_canonical(c.func, inv(T(2)) * x + inv(T(2)) * y)
+    @test c.set == MOI.LessThan(T(1))
     cref = @constraint(model, -1 ≤ x - y ≤ t)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, x - y)
-    @test c.set == MOI.Interval(-1.0, t)
+    @test c.set == MOI.Interval(-T(1), t)
     cref = @constraint(model, 1 ≥ x ≥ 0)
     c = constraint_object(cref)
     @test c.func isa GenericAffExpr
     @test isequal_canonical(c.func, 1 * x)
-    @test c.set == MOI.Interval(0.0, 1.0)
+    @test c.set == MOI.Interval(T(0), T(1))
     return
 end
 

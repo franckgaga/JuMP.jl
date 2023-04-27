@@ -930,7 +930,7 @@ Return the value to which a variable is fixed. Error if one does not exist.
 
 See also [`FixRef`](@ref), [`is_fixed`](@ref), [`fix`](@ref), [`unfix`](@ref).
 """
-function fix_value(v::GenericVariableRef{T}) where T
+function fix_value(v::GenericVariableRef{T}) where {T}
     set = MOI.get(owner_model(v), MOI.ConstraintSet(), FixRef(v))
     return set.value::T
 end
@@ -1714,7 +1714,9 @@ Subject to
  x binary
 ```
 """
-relax_integrality(model::GenericModel) = _relax_or_fix_integrality(nothing, model)
+function relax_integrality(model::GenericModel)
+    return _relax_or_fix_integrality(nothing, model)
+end
 
 """
     fix_discrete_variables([var_value::Function = value,] model::Model)
@@ -1773,9 +1775,9 @@ fix_discrete_variables(model::Model) = fix_discrete_variables(value, model)
 
 function _relax_or_fix_integrality(
     var_value::Union{Nothing,Function},
-    model::Model,
-)
-    if num_constraints(model, VariableRef, MOI.Semicontinuous{Float64}) > 0
+    model::GenericModel{T},
+) where {T}
+    if num_constraints(model, VariableRef, MOI.Semicontinuous{T}) > 0
         error(
             "Support for relaxing semicontinuous constraints is not " *
             "yet implemented.",

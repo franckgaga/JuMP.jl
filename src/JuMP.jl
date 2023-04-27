@@ -527,13 +527,12 @@ the optimizer.
 
 See also: [`add_bridge`](@ref).
 """
-function remove_bridge(model::GenericModel{T}, BT::Type{<:MOI.Bridges.AbstractBridge}) where {T}
+function remove_bridge(
+    model::GenericModel{T},
+    BT::Type{<:MOI.Bridges.AbstractBridge},
+) where {T}
     delete!(model.bridge_types, BT)
-    _moi_call_bridge_function(
-        MOI.Bridges.remove_bridge,
-        backend(model),
-        BT{T},
-    )
+    _moi_call_bridge_function(MOI.Bridges.remove_bridge, backend(model), BT{T})
     if mode(model) != DIRECT
         MOI.Utilities.reset_optimizer(model)
     end
