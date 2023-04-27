@@ -27,6 +27,12 @@ struct _SolutionSummary{T}
     barrier_iterations::Union{Missing,Int}
     simplex_iterations::Union{Missing,Int}
     node_count::Union{Missing,Int}
+    # The default construction `_SolutionSummary(...)` wouldn't work
+    # as `T` would be unbound if `missing` is passed for all possible fields
+    # hence `Aqua` complains.
+    function _SolutionSummary{T}(args...) where {T}
+        return new{T}(args...)
+    end
 end
 
 """
