@@ -1495,13 +1495,11 @@ function test_extension_HermitianPSDCone_errors(
     @variable(model, x)
     @variable(model, y)
     aff_str = "$AffExprType"
-    z = sprint(show, zero(T))
-    o = sprint(show, one(T))
     err = ErrorException(
         "In `@constraint(model, H in HermitianPSDCone(), unknown_kw = 1)`:" *
         " Unrecognized constraint building format. Tried to invoke " *
         "`build_constraint(error, $aff_str[" *
-        "x ($z + $(o)im); ($z - $(o)im) (-$o - $(z)im) y], $(HermitianPSDCone()); unknown_kw = 1)`, but no " *
+        "x im; -im -y], $(HermitianPSDCone()); unknown_kw = 1)`, but no " *
         "such method exists. This is due to specifying an unrecognized " *
         "function, constraint set, and/or extra positional/keyword " *
         "arguments.\n\nIf you're trying to create a JuMP extension, you " *
