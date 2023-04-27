@@ -6,7 +6,7 @@ the manual.
 ## Constructors
 
 ```@docs
-Model
+GenericModel
 direct_model
 ```
 
@@ -33,6 +33,7 @@ object_dictionary
 unregister
 latex_formulation
 set_string_names_on_creation
+value_type
 ```
 
 ## Working with attributes
