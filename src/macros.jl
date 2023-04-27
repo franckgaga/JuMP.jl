@@ -641,7 +641,13 @@ function build_constraint(
     args...;
     kwargs...,
 )
-    return build_constraint(_error, f, MOI.GreaterThan(false), args...; kwargs...)
+    return build_constraint(
+        _error,
+        f,
+        MOI.GreaterThan(false),
+        args...;
+        kwargs...,
+    )
 end
 
 function build_constraint(
