@@ -1317,13 +1317,13 @@ function all_constraints(
     f_type = moi_function_type(function_type)
     if set_type <: MOI.AbstractScalarSet
         constraint_ref_type = ConstraintRef{
-            Model,
+            typeof(model),
             MOI.ConstraintIndex{f_type,set_type},
             ScalarShape,
         }
     else
         constraint_ref_type =
-            ConstraintRef{Model,MOI.ConstraintIndex{f_type,set_type}}
+            ConstraintRef{typeof(model),MOI.ConstraintIndex{f_type,set_type}}
     end
     result = constraint_ref_type[]
     for idx in MOI.get(model, MOI.ListOfConstraintIndices{f_type,set_type}())

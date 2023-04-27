@@ -137,7 +137,7 @@ function set_objective_function(model::GenericModel{T}, func::Real) where {T}
 end
 
 function set_objective_function(
-    model::Model,
+    model::GenericModel,
     func::AbstractVector{<:AbstractJuMPScalar},
 )
     for f in func

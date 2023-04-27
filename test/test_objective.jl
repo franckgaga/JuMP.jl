@@ -92,28 +92,29 @@ function test_extension_objective_affine(
     ModelType = Model,
     VariableType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     @objective(model, Min, 2x)
     @test MIN_SENSE == @inferred objective_sense(model)
-    @test objective_function_type(model) == GenericAffExpr{Float64,VariableType}
+    @test objective_function_type(model) == GenericAffExpr{T,VariableType}
     @test isequal_canonical(objective_function(model), 2x)
     @test isequal_canonical(
         2x,
         @inferred objective_function(
             model,
-            GenericAffExpr{Float64,VariableType},
+            GenericAffExpr{T,VariableType},
         )
     )
     @objective(model, Max, x + 3x + 1)
     @test MAX_SENSE == @inferred objective_sense(model)
-    @test objective_function_type(model) == GenericAffExpr{Float64,VariableType}
+    @test objective_function_type(model) == GenericAffExpr{T,VariableType}
     @test isequal_canonical(objective_function(model), 4x + 1)
     @test isequal_canonical(
         4x + 1,
         @inferred objective_function(
             model,
-            GenericAffExpr{Float64,VariableType},
+            GenericAffExpr{T,VariableType},
         )
     )
     return
@@ -123,23 +124,24 @@ function test_extension_objective_quadratic(
     ModelType = Model,
     VariableType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     @objective(model, Min, x^2 + 2x)
     @test MIN_SENSE == @inferred objective_sense(model)
     @test objective_function_type(model) ==
-          GenericQuadExpr{Float64,VariableType}
+          GenericQuadExpr{T,VariableType}
     @test isequal_canonical(objective_function(model), x^2 + 2x)
     @test isequal_canonical(
         x^2 + 2x,
         @inferred objective_function(
             model,
-            GenericQuadExpr{Float64,VariableType},
+            GenericQuadExpr{T,VariableType},
         )
     )
     @test_throws InexactError objective_function(
         model,
-        GenericAffExpr{Float64,VariableType},
+        GenericAffExpr{T,VariableType},
     )
     return
 end
@@ -158,6 +160,7 @@ function test_extension_objective_sense_as_binnding(
     ModelType = Model,
     VariableType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     sense = MIN_SENSE
@@ -167,7 +170,7 @@ function test_extension_objective_sense_as_binnding(
         2x,
         @inferred objective_function(
             model,
-            GenericAffExpr{Float64,VariableType},
+            GenericAffExpr{T,VariableType},
         )
     )
     sense = :Min

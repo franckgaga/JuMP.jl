@@ -417,7 +417,7 @@ end
 
 Return `true` if `variable` refers to a valid variable in `model`.
 """
-function is_valid(model::GenericModel, variable_ref::VariableRef)
+function is_valid(model::GenericModel, variable_ref::GenericVariableRef)
     return model === owner_model(variable_ref) &&
            MOI.is_valid(backend(model), variable_ref.index)
 end
@@ -1295,7 +1295,7 @@ function add_variable(
         name,
         T,
     )
-    return VariableRef(model, var_index)
+    return GenericVariableRef(model, var_index)
 end
 
 function add_variable(
@@ -1389,7 +1389,7 @@ function add_variable(
         _vectorize_names(names, variable.shape),
         T,
     )
-    var_refs = [VariableRef(model, var_index) for var_index in var_indices]
+    var_refs = [GenericVariableRef{T}(model, var_index) for var_index in var_indices]
     return reshape_vector(var_refs, variable.shape)
 end
 

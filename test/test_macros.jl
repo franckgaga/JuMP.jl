@@ -361,48 +361,48 @@ function test_extension_check_constraint_basics(
     @variable(m, x)
     @variable(m, y)
     @variable(m, z)
-    t = 10.0
-    cref = @constraint(m, 3x - y == 3.3(w + 2z) + 5)
+    t = T(10)
+    cref = @constraint(m, 3x - y == T(33)/T(10) * (w + 2z) + 5)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 3 * x - y - 3.3 * w - 6.6 * z)
-    @test c.set == MOI.EqualTo(5.0)
-    cref = @constraint(m, 3x - y == (w + 2z) * 3.3 + 5)
+    @test isequal_canonical(c.func, 3 * x - y - T(33)/T(10) * w - 6.6 * z)
+    @test c.set == MOI.EqualTo(T(5))
+    cref = @constraint(m, 3x - y == (w + 2z) * T(33)/T(10) + 5)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 3 * x - y - 3.3 * w - 6.6 * z)
-    @test c.set == MOI.EqualTo(5.0)
+    @test isequal_canonical(c.func, 3 * x - y - T(33)/T(10) * w - T(66/10) * z)
+    @test c.set == MOI.EqualTo(T(5))
     cref = @constraint(m, (x + y) / 2 == 1)
     c = constraint_object(cref)
-    @test isequal_canonical(c.func, 0.5 * x + 0.5 * y)
-    @test c.set == MOI.EqualTo(1.0)
+    @test isequal_canonical(c.func, T(inv(2)) * x + T(inv(2)) * y)
+    @test c.set == MOI.EqualTo(T(1))
     cref = @constraint(m, -1 <= x - y <= t)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, x - y)
-    @test c.set == MOI.Interval(-1.0, t)
+    @test c.set == MOI.Interval(-T(1), t)
     cref = @constraint(m, -1 <= x + 1 <= 1)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, 1x)
-    @test c.set == MOI.Interval(-2.0, 0.0)
+    @test c.set == MOI.Interval(-T(2), T(0))
     cref = @constraint(m, -1 <= x <= 1)
     c = constraint_object(cref)
     @test c.func isa AffExprType
     @test isequal_canonical(c.func, 1x)
-    @test c.set == MOI.Interval(-1.0, 1.0)
-    cref = @constraint(m, -1 <= x <= sum(0.5 for i in 1:2))
+    @test c.set == MOI.Interval(-T(1), T(1))
+    cref = @constraint(m, -1 <= x <= sum(T(inv(2)) for i in 1:2))
     c = constraint_object(cref)
     @test c.func isa AffExprType
     @test isequal_canonical(c.func, 1x)
-    @test c.set == MOI.Interval(-1.0, 1.0)
+    @test c.set == MOI.Interval(-T(1), T(1))
     cref = @constraint(m, 1 >= x >= 0)
     c = constraint_object(cref)
     @test c.func isa AffExprType
     @test isequal_canonical(c.func, 1x)
-    @test c.set == MOI.Interval(0.0, 1.0)
+    @test c.set == MOI.Interval(T(0), T(1))
     @test_throws ErrorException @constraint(m, x <= t <= y)
     @test_throws ErrorException @constraint(m, 0 <= Dict() <= 1)
     @test_macro_throws ErrorException @constraint(1 <= x <= 2, foo = :bar)
     @test isequal_canonical(
-        @expression(m, 3x - y - 3.3(w + 2z) + 5),
-        3 * x - y - 3.3 * w - 6.6 * z + 5,
+        @expression(m, 3x - y - T(33)/T(10) * (w + 2z) + 5),
+        3 * x - y - T(33)/T(10) * w - T(66)/T(10) * z + 5,
     )
     @test isequal_canonical(
         @expression(m, quad, (w + 3) * (2x + 1) + 10),
@@ -411,7 +411,7 @@ function test_extension_check_constraint_basics(
     cref = @constraint(m, 3 + 5 * 7 <= 0)
     c = constraint_object(cref)
     @test isequal_canonical(c.func, zero(AffExprType))
-    @test c.set == MOI.LessThan(-38.0)
+    @test c.set == MOI.LessThan(-T(38))
     return
 end
 
@@ -469,12 +469,13 @@ function test_extension_build_constraint_scalar_inequality(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x)
     con = @build_constraint(3x == 1)
     @test con isa ScalarConstraint
     @test isequal_canonical(con.func, 3x)
-    @test con.set == MOI.EqualTo(1.0)
+    @test con.set == MOI.EqualTo(T(1))
     return
 end
 
@@ -495,20 +496,21 @@ function test_extension_build_constraint_SOS1(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x[1:3])
     con = @build_constraint(x in SOS1())
-    con2 = @build_constraint(x in SOS1([4.0, 6.0, 1.0]))
+    con2 = @build_constraint(x in SOS1(T[4, 6, 1]))
     @test con isa VectorConstraint
     @test con.func == x
-    @test con.set == MOI.SOS1([1.0, 2.0, 3.0])
+    @test con.set == MOI.SOS1(T[1, 2, 3])
     @test_throws(
         ErrorException("Weight vector in SOS1 is not of length 3."),
-        @build_constraint(x in SOS1([1.0]))
+        @build_constraint(x in SOS1(T[1]))
     )
     @test con2 isa VectorConstraint
     @test con2.func == x
-    @test con2.set == MOI.SOS1([4.0, 6.0, 1.0])
+    @test con2.set == MOI.SOS1(T[4, 6, 1])
     return
 end
 
@@ -516,20 +518,21 @@ function test_extension_build_constraint_SOS2(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x[1:3])
     con = @build_constraint(x in SOS2())
-    con2 = @build_constraint(x in SOS2([4.0, 6.0, 1.0]))
+    con2 = @build_constraint(x in SOS2(T[4, 6, 1]))
     @test con isa VectorConstraint
     @test con.func == x
-    @test con.set == MOI.SOS2([1.0, 2.0, 3.0])
+    @test con.set == MOI.SOS2(T[1, 2, 3])
     @test_throws(
         ErrorException("Weight vector in SOS2 is not of length 3."),
-        @build_constraint(x in SOS2([1.0]))
+        @build_constraint(x in SOS2(T[1]))
     )
     @test con2 isa VectorConstraint
     @test con2.func == x
-    @test con2.set == MOI.SOS2([4.0, 6.0, 1.0])
+    @test con2.set == MOI.SOS2(T[4, 6, 1])
     return
 end
 
@@ -537,15 +540,16 @@ function test_extension_build_constraint_broadcast(
     ModelType = Model,
     VariableRefType = VariableRef,
 )
+    T = value_type(ModelType)
     model = ModelType()
     @variable(model, x[1:2])
-    ub = [1.0, 2.0]
+    ub = T[1, 2]
     con = @build_constraint(x .<= ub)
     @test con isa Vector{<:ScalarConstraint}
     @test isequal_canonical(con[1].func, 1.0x[1])
     @test isequal_canonical(con[2].func, 1.0x[2])
-    @test con[1].set == MOI.LessThan(1.0)
-    @test con[2].set == MOI.LessThan(2.0)
+    @test con[1].set == MOI.LessThan(T(1))
+    @test con[2].set == MOI.LessThan(T(2))
     return
 end
 

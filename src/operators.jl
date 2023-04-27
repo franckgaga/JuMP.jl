@@ -76,21 +76,20 @@ function Base.:-(lhs::_Constant, rhs::_GenericAffOrQuadExpr)
     return result
 end
 function Base.:*(lhs::_Constant, rhs::_GenericAffOrQuadExpr)
+    T = value_type(variable_ref_type(rhs))
     if iszero(lhs)
         # If `lhs` is complex and `rhs` has real coefficients, `zero(rhs)` would not work
         return zero(
-            _MA.promote_operation(
-                *,
+            _MA.promote_operation(*,
                 _complex_convert_type(
-                    value_type(variable_ref_type(rhs)),
+                    T,
                     typeof(lhs),
                 ),
                 typeof(rhs),
             ),
         )
     else
-        α = _constant_to_number(lhs)
-        return map_coefficients(c -> α * c, rhs)
+        return map_coefficients(Base.Fix1(*, _complex_convert(T, lhs)), rhs)
     end
 end
 
@@ -108,7 +107,7 @@ Base.:-(lhs::AbstractVariableRef, rhs::_Constant) = (+)(-rhs, lhs)
 Base.:*(lhs::AbstractVariableRef, rhs::_Constant) = (*)(rhs, lhs)
 function Base.:/(lhs::AbstractVariableRef, rhs::_Constant)
     T = value_type(typeof(lhs))
-    return (*)(one(T) / rhs, lhs)
+    return (*)(inv(convert(T, rhs)), lhs)
 end
 # AbstractVariableRef--AbstractVariableRef
 function Base.:+(lhs::V, rhs::V) where {V<:AbstractVariableRef}
